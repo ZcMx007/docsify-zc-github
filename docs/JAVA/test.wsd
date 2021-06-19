@@ -1,0 +1,6 @@
+@startuml hello
+' 详细可参考文档http://plantuml.com/zh/
+' 按Alt+D或者Option+D可预览生成的图表
+scale 3
+Amber -> Hsing : test
+@enduml
