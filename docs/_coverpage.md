@@ -8,4 +8,4 @@
 * Thank you!
 
 [GitHub](https://github.com/docsifyjs/docsify/)
-[My Docsify](#/README)
+[My Docsify](/README)
