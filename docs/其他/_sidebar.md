@@ -3,3 +3,5 @@
 * [如何在VSCode中的Markdown文件中直接引用文件](其他/如何在VSCode中的Markdown文件中直接引用文件)
 * [docsify文档生成工具](其他/docsify)
 * [markdownlint规则详细介绍及自定义参数设置](其他/markdownlint规则详细介绍及自定义参数设置)
+* [三进制](其他/三进制)
+* [V2Ray搭建一键搭建](其他/V2Ray搭建一键搭建)
