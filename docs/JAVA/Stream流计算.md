@@ -29,7 +29,7 @@ myList
 
 一个数据源（如： 集合 Collection、数组 Array）， 获取一个流。
 
-- 1、通过 Collection 系列集合提供的 stream()方法或者 parallelStream()方法来创建 Stream。parallelStream 表示创建并行流。流是可以并行执行的，当流中存在大量元素时，可以显著提升性能。并行流底层使用的 ForkJoinPool[ForkJoin:工作窃取，化大为小，分治思想], 它由 ForkJoinPool.commonPool()方法提供。可以在已存在的数据流上调用中间方法 parallel()，将串行流转换为并行流。
+- 1、通过 Collection 系列集合提供的 stream()方法或者 parallelStream()方法来创建 Stream。parallelStream 表示创建并行流。流是可以并行执行的，当流中存在大量元素时，可以显著提升性能。并行流底层使用的 ForkJoinPool[ForkJoin:工作窃取;化大为小，分治思想], 它由 ForkJoinPool.commonPool()方法提供。可以在已存在的数据流上调用中间方法 parallel()，将串行流转换为并行流。
 
   ```java
   ForkJoinPool commonPool = ForkJoinPool.commonPool(); //获取底层的线程池大小
