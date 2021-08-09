@@ -376,6 +376,38 @@ public interface Function<T, R> {
 	}
 ```
 
+## 其他常用函数式接口
+
+### Comparator
+
+Comparator 在 Java 8 之前是使用比较普遍的。Java 8 中除了将其升级成了函数式接口，还为它拓展了一些默认方法：
+
+```java
+Comparator<Person> comparator = (p1, p2) -> p1.firstName.compareTo(p2.firstName);
+
+Person p1 = new Person("John", "Doe");
+Person p2 = new Person("Alice", "Wonderland");
+
+comparator.compare(p1, p2);             // > 0
+comparator.reversed().compare(p1, p2);  // < 0
+```
+
+### Optional
+
+首先，Optional 它不是一个函数式接口，设计它的目的是为了防止空指针异常（NullPointerException），要知道在 Java 编程中， 空指针异常可是臭名昭著的。
+
+让我们来快速了解一下 Optional 要如何使用！你可以将 Optional 看做是包装对象（可能是 null, 也有可能非 null）的容器。当你定义了 一个方法，这个方法返回的对象可能是空，也有可能非空的时候，你就可以考虑用 Optional 来包装它，这也是在 Java 8 被推荐使用的做法。
+
+```java
+Optional<String> optional = Optional.of("bam");
+
+optional.isPresent();           // true
+optional.get();                 // "bam"
+optional.orElse("fallback");    // "bam"
+
+optional.ifPresent((s) -> System.out.println(s.charAt(0)));     // "b" 如果存在值，则使用该值调用指定的消费者，否则不执行任何操作。
+```
+
 ## 总结
 
 Consumer接口(有输入，无输出)，Supplier接口(无输入，有输出)，Predicate接口(有输入，输出必须为boolean类型)，Function(有输入[转换对象]，有输出[被转换对象])；由于可以简单的通过lambda生成这四种函数接口实现对象以及灵活的通过引用现有的方法来巧妙生成函数接口实现对象[注意出参入参的对应关系即可]，因此，灵活熟练的使用可以加快我们的开发效率。还有一点需要注意的是，这四种函数接口可以被定义在方法形参中供方法动态使用(相当于JS中的传参是函数类型[由于js对传递的参数没有显式类型约束，因此可以传递任何类型的参数，包括函数],而java中是不能使用显式的函数/方法来定义形参接参的，只能定义这几种函数接口类型，相当于函数不是么？)，这点是函数接口的核心应用方式，鄙人还需多加练习！
