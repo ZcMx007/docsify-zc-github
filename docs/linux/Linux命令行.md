@@ -84,4 +84,4 @@ ln /mub1/m2.c /usr/liu/a2.c
 \\ 插入\字符；
 \nnn 插入 nnn（八进制）所代表的ASCII字符；
 
-echo默认直接输出到控制台，也可以输出到文件中 例如：将“hello world”字符串输出到f1文件中：```echo "hello world" f1```
+echo默认直接输出到控制台，也可以输出到文件中 例如：将“hello world”字符串输出到f1文件中：```echo "hello world" >>f1```
