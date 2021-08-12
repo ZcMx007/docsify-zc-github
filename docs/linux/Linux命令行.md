@@ -439,9 +439,10 @@ mount [-fnrsvw] [-t vfstype] [-o options] device dir
 ```
 
 实例:
+
 - 1、将 /dev/hda1 挂在 /mnt 之下：
-    ```#mount /dev/hda1 /mnt```
+  - ```#mount /dev/hda1 /mnt```
 - 2、将 /dev/hda1 用只读模式挂在 /mnt 之下：
-    ```#mount -o ro /dev/hda1 /mnt```
+  - ```#mount -o ro /dev/hda1 /mnt```
 - 3、将 /tmp/image.iso 这个光碟的 image 档使用 loop 模式挂在 /mnt/cdrom 之下。用这种方法可以将一般网络上可以找到的 Linux 光 碟 ISO 档在不烧录成光碟的情况下检视其内容:
-    ```#mount -o loop /tmp/image.iso /mnt/cdrom```
+  - ```#mount -o loop /tmp/image.iso /mnt/cdrom```
