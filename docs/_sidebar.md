@@ -1,5 +1,6 @@
 * [其他](其他/)
 * [JAVA](JAVA/)
+* [linux](linux/)
 * [js](js/)
 * [mysql](mysql/)
 * [vue](vue/)
