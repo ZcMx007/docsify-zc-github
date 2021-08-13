@@ -30,16 +30,13 @@ sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/dock
 
 ### 如何配置阿里源所谓yum源呢？
 
-我们进入```/etc/yum.repos.d```文件夹，发现所谓的yum源，其实本质上就是一个个的repo文件。因此所谓的添加yum源就是添加repo文件。但是通过```yum repolist all```命令(罗列出所有的仓库信息)，我们发现并不是所有的被添加到该目录下的repo文件都会生效。而且启用的多个yum源进行同一应用拉取时还有相关策略，为了简单起见，因此我们干脆把CentOS-Base源替换为阿里源不就完事了！
+我们进入```/etc/yum.repos.d```文件夹，发现所谓的yum源，其实本质上就是一个个的repo文件。因此所谓的添加yum源就是添加repo文件。但是通过```yum repolist all```命令(罗列出所有的仓库信息)，我们发现并不是所有的被添加到该目录下的repo文件都会生效。而且启用的多个yum源进行同一应用拉取时还有相关策略，为了简单起见，因此我们干脆把CentOS-Base源替换为阿里源不就完事了！</br>
+  1、备份原有的 yum 源文件，防止丢失</br>
+  ```mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup```</br>
+  2、下载阿里 yum 源配置文件（CentOS7 先安装wget），并将其存储为CentOS-Base源！</br>
+  ```wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo```</br>
+  3、yum清除原yum源的所有缓存后，再重新创建包含阿里源的缓存。缓存作用：将服务器上的软件包信息本地缓存,以提高搜索以及安装软件的速度。</br>
 
-- 1、备份原有的 yum 源文件，防止丢失
-  ```mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup```
-
-- 2、下载阿里 yum 源配置文件（CentOS7 先安装wget），并将其存储为CentOS-Base源！
-  ```wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo```
-
-- 3、yum清除原yum源的所有缓存后，再重新创建包含阿里源的缓存。缓存作用：将服务器上的软件包信息本地缓存,以提高搜索以及安装软件的速度。
-  
   ```linux
   yum clean all
   yum makecache
@@ -47,3 +44,11 @@ sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/dock
 
 实际上我们上面安装的yum-config-manager也同样可以配置阿里源，而且它还可以手动的开启或者关闭yum子源（一个阿里源包含多个子源）：
 使用```sudo yum-config-manager --add-repo http://mirrors.aliyun.com/repo/Centos-7.repo```命令添加yum阿里源，通过```sudo yum-config-manager --enable extras```开启阿里源的extras子源，通过```sudo yum-config-manager --disable extras```关闭阿里源的extras子源。由于yum源的多源选择策略，因此只需要阿里源就行了，此处可以通过```yum-config-manager --disable```命令关闭不需要的yum源。
+
+- 3、安装docker引擎和docker容器
+  - 1、最新版本的docker  ```sudo yum install docker-ce docker-ce-cli containerd.io```
+  - 2、安装指定版本的docker。先使用yum将可用的版本列出并排序：```yum list docker-ce --showduplicates | sort -r```,之后安装一个指定的docker版本：```sudo yum install docker-ce-<VERSION_STRING> docker-ce-cli-<VERSION_STRING> containerd.io```
+- 4、启动docker：```sudo systemctl start docker```
+- 5、验证 Docker 是否正确安装：``` sudo docker run hello-world```,成功则输出：
+  ![docker启动测试](images/2021-08-13-16-23-15.png)
+
