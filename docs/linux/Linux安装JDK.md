@@ -63,7 +63,7 @@ yum install -y java-1.8.0-openjdk*
 # 使用 vim /etc/profile 命令编辑linux的系统文件
 # set java environment  
 JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.181-3.b13.el7_5.x86_64 # 环境位置可能不一样
-PATH=$PATH:$JAVA_HOME/bin  
+PATH=$PATH:$JAVA_HOME/bin  $PATH引用的是之前的PATH配置
 CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar # 运行java程序所需要的依赖包，分别表示当前文件夹、以及java的内置依赖所在位置
 export JAVA_HOME  CLASSPATH  PATH 
 # 保存退出vim编辑 让配置文件生效
