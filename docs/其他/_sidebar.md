@@ -7,3 +7,4 @@
 * [V2Ray搭建一键搭建](其他/V2Ray一键搭建)
 * [Typora](其他/Typora)
 * [webSocket](其他/webSocket)
+* [阿里云服务器](其他/阿里云服务器)
