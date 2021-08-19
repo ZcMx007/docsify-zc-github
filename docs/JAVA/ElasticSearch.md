@@ -1,0 +1,3 @@
+# ElasticSearch
+
+ElasticSearch是一个基于Lucene技术的，使用Restful web接口风格的，使用Java语言编写的分布式多用户的全文搜索引擎技术。
