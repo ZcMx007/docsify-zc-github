@@ -271,3 +271,720 @@ term模糊查询：
 高亮查询操作是我们在逛网站时的一个搜索现象，即为我们搜索条件匹配到的倒排索引在搜索列表中以着重色调标明显示。它是帮助搜索者快速看清搜索项是否满足搜索者搜索需求的一种查询方式。注意：fields这边的属性设置要和查询条件保持一致，否则将无法获得highlight数据。
 
 ![高亮查询](images/2021-08-21-19-11-41.png)
+
+## ElasticSearch整合springboot
+
+在日常的工作使用中，会将ElasticSearch与SpringBoot进行整合。整合也十分的简单：
+
+1、导入maven依赖
+
+```pom
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.logic</groupId>
+    <artifactId>elasticsearch_springboot</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>elasticsearch_springboot</name>
+    <description>Demo project for Spring Boot</description>
+
+    <properties>
+        <java.version>1.8</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <spring-boot.version>2.3.7.RELEASE</spring-boot.version>
+    </properties>
+
+    <dependencies>
+        <!-- https://mvnrepository.com/artifact/com.alibaba/fastjson -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>1.2.75</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.taobao.arthas</groupId>
+            <artifactId>arthas-spring-boot-starter</artifactId>
+            <version>3.4.8</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.junit.vintage</groupId>
+                    <artifactId>junit-vintage-engine</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+    </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>2.3.7.RELEASE</version>
+                <configuration>
+                    <mainClass>com.logic.ElasticsearchSpringbootApplication</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>repackage</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+```
+
+需要注意的一点是，此时ElasticSearch client的版本问题，我们要尽量保证客户端和服务器的版本一致，否则可能会出些许问题。此处可以在当前的pom文件的properties标签中通过**<elasticsearch.version>7.14.0</elasticsearch.version>**命令更改ElasticSearch的版本信息，如果更改不生效，则进入**spring-boot-dependencies**的pom依赖文件再次更改即可。
+
+2、编写ElasticSearch的配置类，自己定义连接客户端的方式和数量，此处我使用的是**RestHighLevel**风格，并且连接数量只有一个。
+
+```java
+@Configuration
+public class ElasticSearchClientConfig {
+	@Bean
+	public RestHighLevelClient restHighLevelClient() {
+		RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(new HttpHost("localhost", 9200, "http")));
+		return restHighLevelClient;
+	}
+}
+```
+
+3、编写一个user的实体类，包含name和age属性，然后进行ElasticSearch客户端的连接测试
+
+```java
+@SpringBootTest
+class ElasticsearchSpringbootApplicationTests {
+
+	@Autowired
+	@Qualifier("restHighLevelClient")
+	private RestHighLevelClient client;
+	@Test
+	void testCreateIndex() throws IOException {
+		//创建索引请求
+		CreateIndexRequest request = new CreateIndexRequest("logic_springboot");
+		//客户端执行请求 indices是index的复数 通过elasticsearch的连接对象请求创建索引后获得响应
+		CreateIndexResponse createIndexResponse = client.indices().create(request, RequestOptions.DEFAULT);
+		System.out.println(createIndexResponse.index());
+	}
+
+	@Test
+	void testIsExistIndex() throws IOException {
+		//获得索引是否存在请求
+		GetIndexRequest request = new GetIndexRequest("logic_springboot");
+		boolean exists = client.indices().exists(request, RequestOptions.DEFAULT);
+		System.out.println(exists);
+	}
+
+	@Test
+	void testDelIndex() throws IOException{
+		//删除索引请求
+		DeleteIndexRequest request = new DeleteIndexRequest("logic_springboot");
+		AcknowledgedResponse delete = client.indices().delete(request, RequestOptions.DEFAULT);
+		System.out.println(delete.isAcknowledged());
+	}
+
+	@Test
+	void testAddDocument() throws IOException{
+		//增加索引文档 添加文档前记得先创建该索引
+		IndexRequest request = new IndexRequest("logic_springboot");
+		User user = new User("zc", 23);
+		//设置存入文档的ID数据 相当于logic_springboot/_doc/1
+		request.id("1");
+		request.timeout(TimeValue.timeValueSeconds(1));
+		//或者使用以下方式设置过期时间
+		request.timeout("1s");
+		//将数据以JSON字符串格式放入请求体中
+		request.source(JSON.toJSONString(user), XContentType.JSON);
+		//客户端发起创建索引文档的请求
+		IndexResponse index = client.index(request, RequestOptions.DEFAULT);
+		System.out.println(index.toString());
+		System.out.println(index.status());
+	}
+
+	@Test
+	void testIsExistDocument() throws IOException {
+		//判断是否存在查询的文档
+		GetRequest request = new GetRequest("logic_springboot", "1");
+		//不获取source的上下文 使得效率更高
+		request.fetchSourceContext(new FetchSourceContext(false));
+		//设置不存储属性值
+		request.storedFields("_none_");
+		System.out.println(client.exists(request, RequestOptions.DEFAULT));
+	}
+
+	@Test
+	void testGetDocument() throws IOException{
+		//获得指定文档的数据信息
+		GetRequest request = new GetRequest("logic_springboot", "1");
+		GetResponse documentFields = client.get(request, RequestOptions.DEFAULT);
+		System.out.println(documentFields.getSourceAsString());
+		System.out.println(documentFields);
+	}
+
+	@Test
+	void testUpdateDocument() throws IOException{
+		//更新文档的数据信息
+		UpdateRequest request = new UpdateRequest("logic_springboot", "1");
+		request.timeout("1s");
+		//更新的数据
+		User user = new User("testUpdate", 3);
+		//设置更新数据
+		request.doc(JSON.toJSONString(user), XContentType.JSON);
+		UpdateResponse update = client.update(request, RequestOptions.DEFAULT);
+		System.out.println(update.status());
+		System.out.println(update);
+	}
+
+	@Test
+	void testDelDocument() throws IOException{
+		//删除文档数据信息
+		DeleteRequest request = new DeleteRequest("logic_springboot", "1");
+		request.timeout("1s");
+		DeleteResponse delete = client.delete(request, RequestOptions.DEFAULT);
+		System.out.println(delete.status());
+	}
+
+	@Test
+	void testBulkAddRequest() throws IOException {
+		BulkRequest request = new BulkRequest();
+		List<User> users = new ArrayList<>();
+		users.add(new User("logic01", 1));
+		users.add(new User("logic02", 2));
+		users.add(new User("logic03", 3));
+		users.add(new User("logic04", 4));
+		users.add(new User("logic05", 5));
+		users.add(new User("logic06", 6));
+		request.timeout("5s");
+		//批处理请求
+		users.forEach(ele->{
+			request.add(new IndexRequest("logic_springboot").id(String.valueOf(ele.getAge())).source(JSON.toJSONString(ele), XContentType.JSON));
+		});
+		BulkResponse bulk = client.bulk(request, RequestOptions.DEFAULT);
+		System.out.println(bulk);
+		System.out.println(bulk.hasFailures());
+	}
+	@Test
+	void testSearch() throws IOException {
+		//高级查询
+		SearchRequest request = new SearchRequest("logic_springboot");
+		//构建搜索条件 既是相当于结构化查询（DSL）
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		//构建各个子查询的构建器 然后按照结构化查询的JSON结构进行套娃即可
+		//通过QueryBuilders来构建查询条件
+		TermQueryBuilder termQueryBuilder = QueryBuilders.termQuery("name", "logic01");
+		searchSourceBuilder.query(termQueryBuilder);
+		//超时时间
+		searchSourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
+		request.source(searchSourceBuilder);
+		SearchResponse search = client.search(request, RequestOptions.DEFAULT);
+		System.out.println(JSON.toJSONString(search.getHits()));
+		System.out.println(search.toString());
+	}
+}
+```
+
+## Jsoup+ElasticSearch
+
+Jsoup是一个很好用的java爬虫，使用Jsoup的方式也很简单，导入maven依赖后直接使用即可。
+
+同时此处也需要使用到阿里巴巴的fastjson依赖用于存储ElasticSearch数据时通过JSON转换工具转换成字符串。但是在使用时尤其需要注意一点，那就是在使用fastjson时，不能使用lombok对对象进行可链式化编程的注解，否则可能出现在使用fastjson将对象转成json格式的字符串时出现转换成空JSON字符串的情况发生。
+
+1、导入maven依赖
+
+```pom
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.logic</groupId>
+    <artifactId>jsoup_es_jd</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>jsoup_es_jd</name>
+    <description>Demo project for Spring Boot</description>
+
+    <properties>
+        <java.version>1.8</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <spring-boot.version>2.3.7.RELEASE</spring-boot.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.jsoup/jsoup -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.14.2</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.alibaba/fastjson -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>1.2.75</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.taobao.arthas</groupId>
+            <artifactId>arthas-spring-boot-starter</artifactId>
+            <version>3.4.8</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.junit.vintage</groupId>
+                    <artifactId>junit-vintage-engine</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+    </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>2.3.7.RELEASE</version>
+                <configuration>
+                    <mainClass>com.logic.JsoupEsJdApplication</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>repackage</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+```
+
+2、编写ElasticSearch客户端配置
+
+```java
+@Configuration
+public class ElasticSearchClientConfig {
+	@Bean
+	public RestHighLevelClient restHighLevelClient() {
+		RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(new HttpHost("localhost", 9200, "http")));
+		return restHighLevelClient;
+	}
+}
+```
+
+3、编写服务端
+
+```java
+@Service
+public class ElasticSearchServiceImpl implements ElasticSearchService {
+	@Autowired
+	@Qualifier("restHighLevelClient")
+	private RestHighLevelClient client;
+
+	@Override
+	public boolean parseJDGoods(String goodName) {
+		String url = "https://search.jd.com/Search?keyword=" + goodName + "&enc=utf-8&suggest=1.his.0" +
+				".0&wq=&pvid=dcf6be638f044edd9d06abffedf1cd6a";
+		Document document = null;
+		try {
+			document = Jsoup.connect(url)
+					.userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.78")
+					.timeout(5000)  //设置超时时间 设置过短可能爬取不到数据
+					.get();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		Elements elements = document.select(".gl-i-wrap");
+		List<Product> products = new ArrayList<>();
+		elements.forEach(element -> {
+			Product product = new Product();
+			product.setImgUrl(element.select("img").get(0).attr("data-lazy-img"));
+			product.setTitle(element.select(".p-name").select("em").select("font").text() + element.select(".p-name").select("em").text());
+			product.setPrice(Double.valueOf(element.select(".p-price").select("i").text()));
+			products.add(product);
+		});
+		BulkRequest request = new BulkRequest();
+		request.timeout("2m");
+		for (int i = 0; i < products.size(); i++) {
+			request.add(new IndexRequest("jd_goods").source(JSON.toJSONString(products.get(i)),
+					XContentType.JSON));
+		}
+		BulkResponse bulk = null;
+		try {
+			bulk = client.bulk(request, RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return products.isEmpty() && !bulk.hasFailures() ? false : true;
+	}
+
+	@Override
+	public List<Map<String,Object>> queryAllProducts(String keyword, int pageNo, int pageSize) {
+		if (pageNo < 1) {
+			pageNo = 1;
+		}
+		//条件搜索
+		SearchRequest request = new SearchRequest("jd_goods");
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		//分页
+		searchSourceBuilder.from(pageNo);
+		searchSourceBuilder.size(pageSize);
+		//精准匹配
+		TermQueryBuilder title = QueryBuilders.termQuery("title", keyword);
+		searchSourceBuilder.query(title);
+		searchSourceBuilder.timeout(new TimeValue(20, TimeUnit.SECONDS));
+		//高亮查询
+		HighlightBuilder highlightBuilder = new HighlightBuilder();
+		highlightBuilder.requireFieldMatch(true);  //如果要多个字段高亮,这项要为false，前提是设置多个属性高亮 为true则表示只有第一个匹配到该文档数据的高亮字符才会高亮
+		highlightBuilder.field("title");  //高亮的位置
+		highlightBuilder.preTags("<span style='color:red'>");
+		highlightBuilder.postTags("</span>");
+		searchSourceBuilder.highlighter(highlightBuilder);
+		//执行搜索
+		request.source(searchSourceBuilder);
+		SearchResponse search = null;
+		try {
+			search = client.search(request, RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		//解析结果
+		List<Map<String,Object>> products = new ArrayList<>();
+		for (SearchHit hit : search.getHits().getHits()) {
+			Map<String, HighlightField> highlightFields = hit.getHighlightFields();
+			HighlightField titleHighLight = highlightFields.get("title");
+			Map<String, Object> sourceAsMap = hit.getSourceAsMap();
+			//解析高亮字段
+			if (titleHighLight != null) {
+				//由于现在高亮字段还不是字符串格式 需要转换
+				Text[] fragments = titleHighLight.getFragments();
+				StringBuffer titleBuffer = new StringBuffer();
+				for (Text fragment : fragments) {
+					titleBuffer.append(fragment);
+				}
+				sourceAsMap.put("title", titleBuffer);
+			}
+			products.add(sourceAsMap);
+		}
+		return products;
+	}
+}
+```
+
+4、编写controller层供前端调用
+
+```java
+@RestController
+public class ElasticSearchController {
+	@Autowired
+	private ElasticSearchServiceImpl elasticSearchService;
+
+	/**
+	 * 解析需要爬取的京东商城数据
+	 * @param goodName 商品名称
+	 * @return
+	 */
+	@RequestMapping("/parse/{goodName}")
+	public String parseGood(@PathVariable("goodName") String goodName) {
+		if (goodName.isEmpty()) {
+			return "请勿传空的解析值！";
+		} else {
+			boolean b = elasticSearchService.parseJDGoods(goodName);
+			return b ? "解析成功！" : "解析失败！";
+		}
+	}
+
+	/**
+	 * 使用ElasticSearch对爬取的商品进行查询
+	 * @param keyword 查询关键词
+	 * @param pageNo 开始的数据序位 Index
+	 * @param pageSize 每页大小
+	 * @return
+	 */
+	@RequestMapping("/search/{keyword}/{pageNo}/{pageSize}")
+	public List<Map<String, Object>> parseGood(@PathVariable("keyword") String keyword, @PathVariable("pageNo") int pageNo, @PathVariable(
+			"pageSize") int pageSize) {
+		return elasticSearchService.queryAllProducts(keyword, pageNo, pageSize);
+	}
+}
+```
+
+5、导入css、js、images等相关静态资源依赖。
+
+![静态资源依赖](images/2021-08-23-01-49-48.png)
+
+6、编写前端html代码
+
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="utf-8"/>
+    <title>狂神说Java-ES仿京东实战</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <script th:src="@{/js/jquery.min.js}"></script>
+</head>
+
+<body class="pg">
+<div class="page" id="app">
+    <div id="mallPage" class=" mallist tmall- page-not-market ">
+
+        <!-- 头部搜索 -->
+        <div id="header" class=" header-list-app">
+            <div class="headerLayout">
+                <div class="headerCon ">
+                    <!-- Logo-->
+                    <h1 id="mallLogo">
+                        <img th:src="@{/images/jdlogo.png}" alt="">
+                    </h1>
+
+                    <div class="header-extra">
+
+                        <!--搜索-->
+                        <div id="mallSearch" class="mall-search">
+                            <form name="searchTop" class="mallSearch-form clearfix">
+                                <fieldset>
+                                    <legend>天猫搜索</legend>
+                                    <div class="mallSearch-input clearfix">
+                                        <div class="s-combobox" id="s-combobox-685">
+                                            <div class="s-combobox-input-wrap">
+                                                <input v-model="keyword" type="text" autocomplete="off" value="dd"
+                                                       id="mq"
+                                                       class="s-combobox-input" aria-haspopup="true">
+                                            </div>
+                                        </div>
+                                        <button type="submit" @click.prevent="searchKey" id="searchbtn">搜索</button>
+                                    </div>
+                                </fieldset>
+                            </form>
+                            <ul class="relKeyTop">
+                                <li><a>狂神说Java</a></li>
+                                <li><a>狂神说前端</a></li>
+                                <li><a>狂神说Linux</a></li>
+                                <li><a>狂神说大数据</a></li>
+                                <li><a>狂神聊理财</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 商品详情页面 -->
+        <div id="content">
+            <div class="main">
+                <!-- 品牌分类 -->
+                <form class="navAttrsForm">
+                    <div class="attrs j_NavAttrs" style="display:block">
+                        <div class="brandAttr j_nav_brand">
+                            <div class="j_Brand attr">
+                                <div class="attrKey">
+                                    品牌
+                                </div>
+                                <div class="attrValues">
+                                    <ul class="av-collapse row-2">
+                                        <li><a href="#"> 狂神说 </a></li>
+                                        <li><a href="#"> Java </a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- 排序规则 -->
+                <div class="filter clearfix">
+                    <a class="fSort fSort-cur">综合<i class="f-ico-arrow-d"></i></a>
+                    <a class="fSort">人气<i class="f-ico-arrow-d"></i></a>
+                    <a class="fSort">新品<i class="f-ico-arrow-d"></i></a>
+                    <a class="fSort">销量<i class="f-ico-arrow-d"></i></a>
+                    <a class="fSort">价格<i class="f-ico-triangle-mt"></i><i class="f-ico-triangle-mb"></i></a>
+                </div>
+
+                <!-- 商品详情 -->
+                <div class="view grid-nosku">
+
+                    <div class="product" v-for="(item,i) in result">
+                        <div class="product-iWrap">
+                            <!--商品封面-->
+                            <div class="productImg-wrap">
+                                <a class="productImg">
+                                    <img :src="item.imgUrl">
+                                </a>
+                            </div>
+                            <!--价格-->
+                            <p class="productPrice">
+                                <em><b>¥</b>{{item.price}}</em>
+                            </p>
+                            <!--标题-->
+                            <p class="productTitle">
+                                <a v-html="item.title"></a>
+                            </p>
+                            <!-- 店铺名 -->
+                            <div class="productShop">
+                                <span>店铺： 狂神说Java </span>
+                            </div>
+                            <!-- 成交信息 -->
+                            <p class="productStatus">
+                                <span>月成交<em>999笔</em></span>
+                                <span>评价 <a>3</a></span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{/js/vue.min.js}"></script>
+<script th:src="@{/js/axios.min.js}"></script>
+<script>
+    new Vue({
+        el: "#app",
+        data:{
+            keyword:'',  //搜索的关键字
+            result:[]   //搜索的结果
+        },
+        methods:{
+            searchKey() {
+                console.log(this.keyword);
+                axios.get("search/"+this.keyword+"/1/10").then(response=>{
+                    this.result = response.data;   //绑定数据
+                })
+
+            }
+        }
+    })
+</script>
+
+</body>
+</html>
+```
+
+7、启动springboot项目，进行测试。
+
+先爬取京东商城数据并存入ElasticSearch服务：
+
+![jsoup爬取数据](images/2021-08-23-01-54-32.png)
+
+再通过写好的前端页面查询ElasticSearch服务中的数据并显示：
+
+![ElasticSearch查询爬取数据](images/2021-08-23-01-52-09.png)
