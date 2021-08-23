@@ -1,7 +1,8 @@
 # ElasticSearch
 
 > 这篇文章是基于狂神的ElasticSearch教程而来，B站搜索：[遇见狂神说](https://space.bilibili.com/95256449)
-> 资源路径:[链接](https://pan.baidu.com/s/1GYii3KuJtCoQd6Wla4r97A)提取码：m096
+> 资源路径:[链接](https://pan.baidu.com/s/1GYii3KuJtCoQd6Wla4r97A)
+> 提取码：m096
 
 ElasticSearch是一个基于Lucene技术的，使用Restful web接口风格的，使用Java语言编写的分布式多用户的全文搜索引擎技术。
 
