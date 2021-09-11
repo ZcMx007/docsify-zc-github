@@ -172,13 +172,33 @@ docker cp [容器Id]:容器文件路径  [主机路径]  #将容器中的文件�
 > 所谓正向代理即是代理众多客户端访问其他服务器（域外），反向代理即是代理众多服务端给客户端发来的请求访问 类似于zuul
 
 ```shell
-# 1、docker搜索Nginx的版本信息  当然，此处也可以使用docker官网进行搜索能看到更加详细的信息docker search nginx# 2、拉取最新的nginx镜像docker pull nginx# 3、使用docker镜像运行docker容器 将容器的名称命名为nginx 以后台运行 并将3302的外部系统端口映射到nginx容器的80端口上docker run --name=nginx -d -p 3302:80 nginx# 访问ip:3302的url地址即可访问docker部署的nginx服务# 在容器路径中查找相关的nginx目录信息whereis nginx# 在/etc/nginx目录下即可查找到nginx的配置文件 如果每次修改nginx配置文件时都需要进入容器 则很是麻烦 此时可以使用卷挂载技术实现主机和docker文件同步操作
+1、docker搜索Nginx的版本信息  当然，此处也可以使用docker官网进行搜索能看到更加详细的信息docker search nginx
+2、拉取最新的nginx镜像docker pull nginx
+3、使用docker镜像运行docker容器 将容器的名称命名为nginx 以后台运行 并将3302的外部系统端口映射到nginx容器的80端口上docker run --name=nginx -d -p 3302:80 nginx
+# 访问ip:3302的url地址即可访问docker部署的nginx服务
+# 在容器路径中查找相关的nginx目录信息whereis nginx
+# 在/etc/nginx目录下即可查找到nginx的配置文件 如果每次修改nginx配置文件时都需要进入容器 则很是麻烦 此时可以使用卷挂载技术实现主机和docker文件同步操作
 ```
 
 nginx如何配置负载均衡，[链接](https://www.cnblogs.com/bluestorm/p/4574688.html)。
 
 ```conf
-# 设定负载均衡后台服务器列表upstream backend {#ip_hash;server 192.168.10.100:8080 weight=1 max_fails=2 fail_timeout=30s ; //weight表示权重 是负载均衡的配置项server 192.168.10.101:8080 weight=1 max_fails=2 fail_timeout=30s ;}#在server下配置反向代理#对 / 所有做负载均衡+反向代理location / {root /apps/oaapp;index index.jsp index.html index.htm;proxy_pass http://backend;proxy_redirect off;# 后端的Web服务器可以通过X-Forwarded-For获取用户真实IPproxy_set_header Host $host;proxy_set_header X-Real-IP $remote_addr;proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;}
+# 设定负载均衡后台服务器列表
+upstream backend {#ip_hash;server 192.168.10.100:8080 weight=1 max_fails=2 fail_timeout=30s ; //weight表示权重 是负载均衡的配置项
+server 192.168.10.101:8080 weight=1 max_fails=2 fail_timeout=30s ;}
+#在server下配置反向代理
+#对 / 所有做负载均衡+反向代理
+location / {
+root /apps/oaapp;
+index index.jsp index.html index.htm;、
+proxy_pass http://backend;
+proxy_redirect off;
+# 后端的Web服务器可以通过X-Forwarded-For获取用户真实IP
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+}
 ```
 
 > Docker安装Tomcat
