@@ -191,8 +191,36 @@ docker run -d --hostname logic-zc --name my-rabbitmq -v /usr/rabbitmq/data:/var/
 
 ![发布订阅](images/2021-09-12-10-02-03.png)
 
+说明：发布订阅模式和工作队列模式有点相似，不过它主要是为了使不同的消费者能够消费同一条信息所设计的。其原理很简单，就是在生产者生产数据时通过路由将信息发送至多个队列，而后消费者分别从各自的队列中取出数据消费即可。
 
+操作步骤：
+
+```console
+生产者：
+1、创建连接工厂
+2、设置连接参数
+3、创建连接的Connection
+4、创建channel
+5、创建交换机 交换机枚举类型：DIRECT("direct"), FANOUT("fanout"), TOPIC("topic"), HEADERS("headers")
+6、创建队列queue
+7、绑定队列到指定的交换机 普通发布订阅模式routingKey默认设置为""
+8、生产者发送消息
+9、关闭连接
+消费者：
+1、创建连接工厂
+2、设置连接参数
+3、创建连接的Connection
+4、创建channel
+5、消费队列消息，消费者不需要关闭通道和连接
+```
 
 #### 路由模式（Routing）
 
+图解：
+
+![路由](images/2021-09-12-10-25-04.png)
+
+
+
 #### 通配符模式（Topics）
+
