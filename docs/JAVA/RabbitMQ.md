@@ -138,6 +138,8 @@ docker run -d --hostname logic-zc --name my-rabbitmq -v /usr/rabbitmq/data:/var/
 
 ![普通](images/2021-09-12-09-30-43.png)
 
+说明，普通模式是RabbitMQ最简单的一种工作模式，它只需要一个生产者、一个消费者以及一个队列即可完成操作，不涉及到RabbitMQ中的交换机配置，将由系统自动配置使用。
+
 操作步骤：
 
 ```console
@@ -159,11 +161,37 @@ docker run -d --hostname logic-zc --name my-rabbitmq -v /usr/rabbitmq/data:/var/
 
 #### 工作队列模式（Work queues）
 
-
+图解：
 
 ![Work queues](images/2021-09-12-09-41-07.png)
 
+说明：工作队列模式和普通模式极其相似，唯一不同的地方在于它可以拥有多个消费者，其主要目的是为了能够分摊消费口的压力，起到分流减压的效果。
+
+操作步骤：
+
+```console
+生产者：
+1、创建连接工厂
+2、设置连接参数
+3、创建连接的Connection
+4、创建channel
+5、批量创建队列queue并发送消息
+6、关闭通道和连接
+消费者：
+1、创建连接工厂
+2、设置连接参数
+3、创建连接的Connection
+4、创建channel
+5、消费队列消息，消费者不需要关闭通道和连接
+```
+
 #### 发布订阅模式（Publish/Subscribe）
+
+图解：
+
+![发布订阅](images/2021-09-12-10-02-03.png)
+
+
 
 #### 路由模式（Routing）
 
