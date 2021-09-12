@@ -249,4 +249,10 @@ docker run -d --hostname logic-zc --name my-rabbitmq -v /usr/rabbitmq/data:/var/
 
 ![通配符](images/2021-09-12-10-41-36.png)
 
-说明：
+说明：通配符模式是基于路由模式的基础上发展而来的，其主要是为了通配routingKey的值，从而使得路由更加的灵活。其中通配符*表示占位一个单词，通配符\#表示占位任意个字符。
+
+操作步骤：
+
+```console
+```
+
