@@ -136,11 +136,32 @@ docker run -d --hostname logic-zc --name my-rabbitmq -v /usr/rabbitmq/data:/var/
 
 图解：
 
-![图解](images/2021-09-12-09-30-43.png)
+![普通](images/2021-09-12-09-30-43.png)
 
+操作步骤：
 
+```console
+生产者：
+1、创建连接工厂
+2、设置连接参数
+3、创建连接的Connection
+4、创建channel
+5、创建声明队列queue
+6、发送队列消息
+7、关闭通道和连接
+消费者：
+1、创建连接工厂
+2、设置连接参数
+3、创建连接的Connection
+4、创建channel
+5、消费队列消息，消费者不需要关闭通道和连接
+```
 
 #### 工作队列模式（Work queues）
+
+
+
+![Work queues](images/2021-09-12-09-41-07.png)
 
 #### 发布订阅模式（Publish/Subscribe）
 
