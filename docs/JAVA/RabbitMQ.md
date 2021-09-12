@@ -201,7 +201,7 @@ docker run -d --hostname logic-zc --name my-rabbitmq -v /usr/rabbitmq/data:/var/
 2、设置连接参数
 3、创建连接的Connection
 4、创建channel
-5、创建交换机 交换机枚举类型：DIRECT("direct"), FANOUT("fanout"), TOPIC("topic"), HEADERS("headers")
+5、创建广播交换机 交换机枚举类型：DIRECT("direct"), FANOUT("fanout"), TOPIC("topic"), HEADERS("headers")
 6、创建队列queue
 7、绑定队列到指定的交换机 普通发布订阅模式routingKey默认设置为""
 8、生产者发送消息
@@ -220,7 +220,33 @@ docker run -d --hostname logic-zc --name my-rabbitmq -v /usr/rabbitmq/data:/var/
 
 ![路由](images/2021-09-12-10-25-04.png)
 
+说明：路由模式是在基础的发布订阅模式的基础上发展而来。主要是为了区分不同的订阅者从而决定是否将该发布信息同步至该订阅者队列中。例如，如果在日志系统中，如果是error级别的信息则将记录至数据库，而info及以上级别的信息直接打印至控制台输出即可。
 
+操作步骤：
+
+```console
+生产者：
+1、创建连接工厂
+2、设置连接参数
+3、创建连接的Connection
+4、创建channel
+5、创建广播交换机 交换机枚举类型：DIRECT("direct"), FANOUT("fanout"), TOPIC("topic"), HEADERS("headers")
+6、创建队列queue
+7、绑定队列到指定的交换机 Routing模式的routingKey需要指定设置
+8、生产者分别发送不同routingKey标识的消息
+9、关闭连接
+消费者：
+1、创建连接工厂
+2、设置连接参数
+3、创建连接的Connection
+4、创建channel
+5、消费队列消息，消费者不需要关闭通道和连接
+```
 
 #### 通配符模式（Topics）
 
+图解：
+
+![通配符](images/2021-09-12-10-41-36.png)
+
+说明：
