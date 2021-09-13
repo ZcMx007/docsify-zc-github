@@ -254,5 +254,550 @@ docker run -d --hostname logic-zc --name my-rabbitmq -v /usr/rabbitmq/data:/var/
 操作步骤：
 
 ```console
+生产者：
+1、创建连接工厂
+2、设置连接参数
+3、创建连接的Connection
+4、创建channel
+5、创建广播交换机 交换机枚举类型：DIRECT("direct"), FANOUT("fanout"), TOPIC("topic"), HEADERS("headers")
+6、创建队列queue
+7、绑定队列到指定的交换机 Topics模式的routingKey需要使用通配符进行泛配置
+8、生产者分别发送不同routingKey标识的消息
+9、关闭连接
+消费者：
+1、创建连接工厂
+2、设置连接参数
+3、创建连接的Connection
+4、创建channel
+5、消费队列消息，消费者不需要关闭通道和连接
 ```
 
+## RabbitMQ整合
+
+### spring整合RabbitMQ
+
+> 参考[链接](https://www.jianshu.com/p/39f74092fb7e)
+
+1、创建maven工程，工程结构为一个主项目中包含两个模块
+
+2、主项目pom文件配置maven依赖
+
+```pom
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>spring-rabbitmq</artifactId>
+    <packaging>pom</packaging>
+    <version>1.0-SNAPSHOT</version>
+    <modules>
+        <module>spring-producer</module>
+        <module>spring-consumer</module>
+    </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>5.2.5.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.amqp</groupId>
+            <artifactId>spring-rabbit</artifactId>
+            <version>2.1.8.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <version>5.2.5.RELEASE</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+```
+
+3、在生产者模块和消费者模块中配置rabbitmq的配置文件类
+
+```properties
+rabbitmq.host=120.26.162.227
+rabbitmq.port=8680
+rabbitmq.username=admin
+rabbitmq.password=admin
+rabbitmq.virtual-host=my_vhost
+```
+
+4、生产者模块中配置springcontext的xml文件
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+               http://www.springframework.org/schema/beans/spring-beans.xsd
+               http://www.springframework.org/schema/context
+               http://www.springframework.org/schema/context/spring-context.xsd
+               http://www.springframework.org/schema/rabbit
+               http://www.springframework.org/schema/rabbit/spring-rabbit.xsd">
+    <!--加载配置文件-->
+    <context:property-placeholder location="rabbitmq.properties"/>
+    <!--定义rabbitmq，connectionFactory-->
+    <rabbit:connection-factory id="connectionFactory"
+                               host="${rabbitmq.host}"
+                               port="${rabbitmq.port}"
+                               username="${rabbitmq.username}"
+                               password="${rabbitmq.password}"
+                               virtual-host="${rabbitmq.virtual-host}"/>
+    <!--定义管理交换机队列-->
+    <rabbit:admin connection-factory="connectionFactory"/>
+    <!--定义持久化队列，不存在则自动创建，如果不存在交换机，则绑定到默认交换机direct,名字为"",路由键为队列名称 -->
+    <rabbit:queue id="spring_queue" name="spring_queue" auto-declare="true"/>
+    <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~广播；所有队列都能收到消息~~~~~~~~~~~~~~-->
+    <!--定义广播交换机中的持久化策略，如果不存在，就自动创建-->
+    <rabbit:queue id="spring_fanout_queue_01" name="spring_fanout_queue_01" auto-declare="true"/>
+    <rabbit:queue id="spring_fanout_queue_02" name="spring_fanout_queue_02" auto-declare="true"/>
+    <!--定义广播类型交换机；并绑定上述两个队列-->
+    <rabbit:fanout-exchange id="spring_fanout_exchange" name="spring_fanout_exchange" auto-declare="true">
+        <rabbit:bindings>
+            <rabbit:binding queue="spring_fanout_queue_01"/>
+            <rabbit:binding queue="spring_fanout_queue_02"/>
+        </rabbit:bindings>
+    </rabbit:fanout-exchange>
+    <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~通配符；*匹配一个单词，#匹配多个单词 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+    <rabbit:queue id="spring_topic_queue_star" name="spring_topic_queue_star" auto-declare="true"/>
+    <rabbit:queue id="spring_topic_queue_hall" name="spring_topic_queue_hall" auto-declare="true"/>
+    <rabbit:queue id="spring_topic_queue_hall02" name="spring_topic_queue_hall02" auto-declare="true"/>
+    <rabbit:topic-exchange id="spring_topics_change" name="spring_topics_change" auto-declare="true">
+        <rabbit:bindings>
+            <rabbit:binding pattern="item.*" queue="spring_topic_queue_star"/>
+            <rabbit:binding pattern="item.#" queue="spring_topic_queue_hall"/>
+            <rabbit:binding pattern="book.#" queue="spring_topic_queue_hall02"/>
+        </rabbit:bindings>
+    </rabbit:topic-exchange>
+    <!--定义rabbitTemplate对象操作可以在代码中方便发送消息-->
+    <rabbit:template id="rabbitTemplate" connection-factory="connectionFactory"/>
+</beans>
+```
+
+5、消费者的springcontext的xml文件
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+               http://www.springframework.org/schema/beans/spring-beans.xsd
+               http://www.springframework.org/schema/context
+               http://www.springframework.org/schema/context/spring-context.xsd
+               http://www.springframework.org/schema/rabbit
+               http://www.springframework.org/schema/rabbit/spring-rabbit.xsd">
+    <!--加载配置文件-->
+    <context:property-placeholder location="rabbitmq.properties"/>
+    <!--定义rabbitmq，connectionFactory-->
+    <rabbit:connection-factory id="connectionFactory"
+                               host="${rabbitmq.host}"
+                               port="${rabbitmq.port}"
+                               username="${rabbitmq.username}"
+                               password="${rabbitmq.password}"
+                               virtual-host="${rabbitmq.virtual-host}"/>
+    <!--定义rabbitTemplate对象操作可以在代码中方便发送消息-->
+    <rabbit:template id="rabbitTemplate" connection-factory="connectionFactory"/>
+    <!--将listener纳入Spring容器-->
+    <context:component-scan base-package="com.logic"/>
+    <rabbit:listener-container connection-factory="connectionFactory" auto-declare="true">
+        <rabbit:listener ref="springQueueListener" queue-names="spring_queue"/>
+        <rabbit:listener ref="springFanoutQueueListener01" queue-names="spring_fanout_queue_01"/>
+        <rabbit:listener ref="springFanoutQueueListener02" queue-names="spring_fanout_queue_02"/>
+        <rabbit:listener ref="springTopicsQueueListener01" queue-names="spring_topic_queue_star"/>
+        <rabbit:listener ref="springTopicsQueueListener02" queue-names="spring_topic_queue_hall"/>
+        <rabbit:listener ref="springTopicsQueueListener03" queue-names="spring_topic_queue_hall02"/>
+    </rabbit:listener-container>
+</beans>
+```
+
+6、生产者发送消息至rabbitmq
+
+```java
+package com.logic;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(locations = "classpath:spring-rabbitmq-producer.xml")
+public class ProducerTest {
+	@Autowired
+	private RabbitTemplate rabbitTemplate;
+
+	@Test
+	public void test00(){
+		System.out.println(rabbitTemplate);
+	}
+
+	/**
+	 * 普通消息传送
+	 */
+	@Test
+	public  void  test01(){
+		rabbitTemplate.convertAndSend("spring_queue","hello spring rabbit".getBytes());
+	}
+	/**
+	 * 发送fanout消息
+	 */
+	@Test
+	public  void  test02(){
+		rabbitTemplate.convertAndSend("spring_fanout_exchange","","hello spring rabbit[fanout]");
+	}
+	/**
+	 * 发送topic消息
+	 */
+	@Test
+	public  void test03(){
+		rabbitTemplate.convertAndSend("spring_topics_change","item.delete.id","hello spring rabbit[topic]");
+	}
+}
+```
+
+7、消费者接收消息，此处类的编写是根据rabbitmq的listener-container(xml文件)来的，此处仅列举一个示例
+
+```java
+package com.logic.ConsumerListener;
+
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageListener;
+import org.springframework.stereotype.Component;
+
+@Component
+public class SpringQueueListener implements MessageListener {
+
+	@Override
+	public void onMessage(Message message) {
+		System.out.println("spring-queue" + new String(message.getBody()));
+	}
+}
+```
+
+8、启动消费者模块，然后通过发送者模块发送消息观察消费者模块的控制台输出。
+
+### springboot整合RabbitMQ
+
+> 参考[链接](https://www.cnblogs.com/lusaisai/p/13019822.html)
+
+1、创建maven工程，工程结构为一个主项目中包含两个模块
+
+2、向主项目的pom文件中添加maven依赖
+
+```pom
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>springboot-rabbitmq</artifactId>
+    <packaging>pom</packaging>
+    <version>1.0-SNAPSHOT</version>
+    <modules>
+        <module>springboot-Producer</module>
+        <module>springboot-Consumer</module>
+    </modules>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.1.4.RELEASE</version>
+    </parent>
+
+    <dependencies>
+        <!-- 使用springmvc来进行测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!--amqp的起步依赖-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+        <!--单元测试类-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
+```
+
+3、配置生产模块和消费模块各自的springboot启动类和yaml配置文件
+
+生产模块：
+
+```java
+@SpringBootApplication
+public class ProducerApplication {
+	public static void main(String[] args) {
+		SpringApplication.run(ProducerApplication.class, args);
+	}
+}
+```
+
+```yaml
+#tomcat端口
+server:
+  port: 8888
+#Rabbitmq的配置
+spring:
+  rabbitmq:
+    host: 120.26.162.227
+    port: 8680
+    virtual-host: my_vhost
+    username: admin
+    password: admin
+```
+
+消费模块：
+
+```java
+@SpringBootApplication
+public class ConsumerApplication {
+	public static void main(String[] args) {
+		SpringApplication.run(ConsumerApplication.class, args);
+	}
+}
+```
+
+```yaml
+#端口,注意端口不要冲突
+server:
+  port: 9999
+#Rabbitmq的配置
+spring:
+  rabbitmq:
+    host: 120.26.162.227
+    port: 8680
+    virtual-host: my_vhost
+    username: admin
+    password: admin
+```
+
+4、生产模块配置RabbitMQ的springboot配置并编写相应的发送信息接口
+
+配置：
+
+```java
+/**
+ * RabbitMQ配置类
+ */
+@Configuration
+public class RabbitMQConfig {
+	//交换机名称
+	public static final String ITEM_TOPIC_EXCHANGE = "item_topic_exchange";
+	//队列名称
+	public static final String ITEM_QUEUE = "item_queue";
+
+	//声明交换机
+	@Bean
+	public Exchange topicExchange(){
+		return ExchangeBuilder.topicExchange(ITEM_TOPIC_EXCHANGE).durable(true).build();
+	}
+
+	//声明队列
+	@Bean
+	public Queue itemQueue(){
+		return QueueBuilder.durable(ITEM_QUEUE).build();
+	}
+
+	//绑定队列和交换机
+	@Bean
+	public Binding itemQueueExchange(@Qualifier("itemQueue") Queue queue,
+	                                 @Qualifier("topicExchange") Exchange exchange){
+		return BindingBuilder.bind(queue).to(exchange).with("item.#").noargs();
+	}
+
+}
+```
+
+controller接口：
+
+```java
+@RestController
+public class SendMsgController {
+	//注入RabbitMQ的模板
+	@Autowired
+	private RabbitTemplate rabbitTemplate;
+
+	/**
+	 * 测试
+	 */
+	@GetMapping("/sendmsg")
+	public String sendMsg(@RequestParam String msg, @RequestParam String key){
+		/**
+		 * 发送消息
+		 * 参数一：交换机名称
+		 * 参数二：路由key: item.springboot-rabbitmq,符合路由item.#规则即可
+		 * 参数三：发送的消息
+		 */
+		rabbitTemplate.convertAndSend(RabbitMQConfig.ITEM_TOPIC_EXCHANGE ,key ,msg);
+		//返回消息
+		return "发送消息成功！";
+	}
+}
+```
+
+5、调用发送接口，使activemq中间件创建springboot配置中的队列，从而使得后续的消费模块能够监听该队列
+
+```http
+http://localhost:8888/sendmsg?msg=springboot-rabbitmq-producer&key=item.springboot-rabbitmq
+```
+
+6、消息监听处理类MyListener监听RabbitMQ队列
+
+```java
+@Component
+public class ConsumerListener {
+   @RabbitListener(queues = "item_queue")
+   public void msg(String msg){
+      System.out.println("消费者消费消息了："+msg);
+      //TODO 这里可以做异步的工作
+   }
+}
+```
+
+## RabbitMQ的高级特性
+
+### 生产端消息的可靠性投递
+
+rabbitmq的消息投递路径是：
+
+producer-->rabbitmq broker-->exchange-->queue-->consumer
+
+#### confirm:
+
+如果在该过程中的`producer-->rabbitmq broker-->exchange`步骤消息丢失，例如发送到不存在的交换机导致消息丢失，则可以使用生产端的confirm确认方式来确保消息的可靠投递。该过程会返回一个confirmCallback。
+
+步骤：
+
+```console
+1、确认confirm确认方式被开启：yaml文件中publisher-confirms参数设置为true
+2、在rabbitTemplate中定义confirmCallback的回调参数
+```
+
+#### return:
+
+如果在该过程中的`exchange-->queue`步骤消息丢失，则一般情况下rabbitmq采用的方式是丢弃不处理，当然，可以通过代码的编写开启处理。例如路由写错了就会发生交换机传递消息到队列时发生消息丢失。若投递失败则会返回一个returnCallback。
+
+步骤：
+
+```console
+1、确认return确认方式被开启：yaml文件中publisher-returns参数设置为true
+2、在rabbitTemplate中定义returnCallback的回调参数
+3、设置开启交换机处理失败消息的模式，否则默认将丢弃不处理
+```
+
+### 消费端消息的可靠性接收
+
+同样在rabbitmq的消息投递路径中，如果发生了`queue-->consumer`步骤的消息丢失，则需要在消费端使用Consumer Ack的方式确保消息的可靠传递。
+
+#### Consumer Ack
+
+Ack指的是acknowledge，确认。表示消费端接收消息后的确认方式。
+
+它有三种方式：
+
+1、自动确认：acknowledge="none"（默认）
+
+2、手动确认：acknowledge="manual"（比较方便，使用较多）
+
+3、根据异常情况进行确认：acknowledge="auto"（比较麻烦，使用较少）
+
+步骤：
+
+```console
+1、在yaml文件中设置spring.rabbitmq.listener.simple.acknowledge-mode属性为"manual"手动接收
+2、如果是spring整合，则消费端需要实现ChannelAwareMessageListener接口；如果是springboot，则需要在被@RabbitListener注解标识的方法上使用Message和Channel作为接参的参数类型
+3、使用try{}catch{}包裹消费业务代码，模拟业务出错观察Ack操作。channel.basicAck(msg.getMessageProperties().getDeliveryTag(), true);表示手动确认签收
+channel.basicNack(msg.getMessageProperties().getDeliveryTag(), true, false);表示拒绝签收 第三个参数requeue设置为false表示出错将不再返回队列
+```
+
+### 消费端限流
+
+RabbitMQ同样有着**削峰填谷**的的特点，因此为了防止业务程序遭受大量请求的冲击，因此可以使用消费端限流的方式限制消费端处理请求的个数，从而达到**削峰填谷**的目的。
+
+步骤：
+
+```console
+1、进行消费端限流操作需要保证消费端使用的是手动确认的Consumer Ack方式，这样就能根据确认的结果来确定是否可以再处理新的请求。
+2、在yaml文件中设置spring.rabbitmq.listener.simple.prefetch属性为较小的一个数字，表示限流的处理请求数。
+3、在生产端生产多条消费信息（数量大于prefetch属性设置的值）
+4、在消费端手动确认时将确认代码注释掉，然后运行项目从队列中获取消费信息消费发现只会有prefetch属性设置的数量进入了消费端处理，而由于没有手动确认操作，所以队列中的其他消息将无法被消费。
+```
+
+### 生产端过期时间(TTL)设置
+
+同样可以为队列中长期得不到处理的消息设置过期时间，设置过期时间有很多用处，常用于死信队列以及延迟队列中，后续会涉及到。设置过期时间的方式有两种，分别是设置队列的过期时间以及设置单个消息的过期时间。如果两种方式都使用的话，则消息的过期时间以两者之间TTL较小的那个数值为准。
+
+#### 队列过期时间
+
+如果使用的是队列的过期时间设置，则队列中的所有消息都有相同的过期时间。
+
+操作方式：如果是使用的spring集成，则在队列的bean配置中直接设置x-message-ttl参数即可，注意同时需要设置参数的类型是integer类型；如果是使用的springboot集成，则直接在Configuration配置文件中配置queue的bean实体时，使用Map配置queue的参数即可。
+
+#### 单个消息过期时间
+
+若是对消息进行单独设置，则每条消息TTL可以不同。
+
+操作方式：创建一个MessagePostProcessor对象，在该对象中配置单个消息的过期时间，然后在使用rabbitmq的convertAndSend方法时将该对象作为参数传入即可。
+
+### 死信队列
+
+图解：
+
+![死信队列](images/2021-09-14-00-32-24.png)
+
+说明：所谓
+
+### 延迟队列
+
+### 日志与监控
+
+## 消息追踪
+
+## RabbitMQ应用问题
+
+### 消息补偿
+
+### 幂等性保障
+
+## RabbitMQ集群搭建
