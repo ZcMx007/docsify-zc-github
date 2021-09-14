@@ -813,15 +813,84 @@ RabbitMQ同样有着**削峰填谷**的的特点，因此为了防止业务程�
 
 ![延时队列](images/2021-09-14-12-36-39.png)
 
-b
+需求：
+
+1、下单后，30分钟未支付，取消订单，回滚库存。
+
+2、新用户注册成功7天后，APP发送短信消息问候。
+
+步骤：
+
+```console
+1、声名配置正常的交换机以及队列
+2、声名配置死信的交换机以及队列
+3、在正常的队列中配置死信交换机以及死信队列所对应的routingKey,并设置正常队列的TTL生存时间（这是延时队列实现最重要的一步）
+4、生产端向正常队列中发送消息
+5、编写消费端消费死信队列中的死信消息代码
+6、启动生产-消费服务,消息到达指定时间后就可以观察到消息由正常队列进入了死信队列然后被消费端消费处理的过程。
+```
 
 ### 日志与监控
 
-## 消息追踪
+> 参考文档[链接](https://blog.csdn.net/mrwxxxx/article/details/109494783)
+
+日志记录了客户端和Rabbitmq服务器的交互情况，包含RabbitMQ的版本号，Erlang的版本号，RabbitMQ的服务节点名称，cookie的hash值，RabbitMQ配置文件地址，内存限制，硬盘限制。日志默认存放在 /var/log/rabbitmq/rabbit@xxx.log。
+
+我们可以通过rabbitmq的管理控制台直接查看，也可以通过命令的方式来监控。
+
+**注意**：如果是使用docker运行的rabbitmq，则需要先进入交互模式控制台再使用日志与监控命令。
+
+1. 查看队列
+2. 查看交换机
+3. 查看用户
+4. 查看连接
+5. 查看消费者信息
+6. 查看环境变量
+7. 查看未被确认的队列
+8. 查看单个队列的使用情况
+9. 查看准备就绪的队列
+
+### 消息追踪
+
+消息传递的过程中总会有各种各样的异常发生，我们需要通过追踪这些消息的发送过程，投递过程，来定位消息传递的异常位置，从而提高开发的效率。但是需要注意的是，开启追踪会降低rabbitmq的运行效率。
+
+在Rabbiitmq中可以使用Firehose和rabbitmq_tracing插件来实现消息的追踪功能。
+
+#### Firehose
+
+Firehose的机制是将生产者发送给Rabbitmq的消息以及Rabbitmq投递给消费者的消息按照指定的格式发送到默认的交换机中。这个默认的交换机的名称为amq.rabbitmq.trace，它是一个topic类型的交换机。同时，这个消息会在原有的消息基础上添加消息头，包括一系列的消息相关的信息，如交换机名称，路由键，节点名称，虚拟机名称，连接名称，通道数目，用户名称，路由的队列名称。这些信息能够有效地追踪消息的发送过程。发送到amq.rabbitmq.trace默认交换机的消息的routing key 为两种，一种是生产者投递到交换机的消息，routing key 为publish.exchangename，后面为实际的交换机名称；一种是消费者从queue中获取的消息，routing key为deliver.queuname，后面为实际的队列名称。
+
+命令：
+
+```shell
+rabbitmqctl trace_on  #开启Firehose命令
+rabbitmqctl trace_off  #关闭Firehose命令
+#注意，打开该插件会影响消息的写入功能，请合理地使用。
+```
+
+#### rabbitmq_tracing
+
+rabibtmq_tracing比Firehose多了一层GUI的封装，更容易使用了。
+
+命令：
+
+```shell
+rabbitmq-plugins enable rabbitmq_tracing  #启用插件
+```
+
+当我们启用该插件后，在rabbitmq的管理控制台的admin子页面就会出现trace的入口，我们自行添加一个trace，选择要监听的虚拟机，以及routing key规则。设置好规则后，那些被Firehose默认发送到amq.rabbit,mq.trace交换机中的消息只要符合trace的routing key规则都会被记录下消息的消息头到日志文件trace.log中。这样就记录下了消息的发送与投递过程，便于我们的开发纠错。
 
 ## RabbitMQ应用问题
 
 ### 消息补偿
+
+为了尽可能确保消息传递的可靠性，采用消息补偿的方式实现。
+
+图解：
+
+![消息补偿](images/2021-09-14-13-02-40.png)
+
+
 
 ### 幂等性保障
 
