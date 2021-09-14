@@ -13,3 +13,4 @@
 * [mybatis-plus](JAVA/mybatis-plus)
 * [Redis](JAVA/Redis)
 * [ElasticSearch](JAVA/ElasticSearch)
+* [RabbitMQ](JAVA/RabbitMQ)
