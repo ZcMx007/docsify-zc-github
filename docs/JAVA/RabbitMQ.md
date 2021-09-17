@@ -840,15 +840,15 @@ RabbitMQ同样有着**削峰填谷**的的特点，因此为了防止业务程�
 
 **注意**：如果是使用docker运行的rabbitmq，则需要先进入交互模式控制台再使用日志与监控命令。
 
-1. 查看队列
-2. 查看交换机
-3. 查看用户
-4. 查看连接
-5. 查看消费者信息
-6. 查看环境变量
-7. 查看未被确认的队列
-8. 查看单个队列的使用情况
-9. 查看准备就绪的队列
+1. 查看队列`rabbitmqctl list_queues`
+2. 查看交换机`rabbitmqctl list_exchanges`
+3. 查看用户`rabbitmqctl list_users`
+4. 查看连接`rabbitmqctl list_connections`
+5. 查看消费者信息`rabbitmqctl list_consumers`
+6. 查看环境变量`rabbitmqctl environment`
+7. 查看未被确认的队列`rabbitmqctl list_queues name messages_unacknowledged`
+8. 查看单个队列的使用情况`rabbitmqctl list_queues name memory`
+9. 查看准备就绪的队列`rabbitmqctl list_queus name messages_ready`
 
 ### 消息追踪
 
