@@ -39,17 +39,18 @@ sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/dock
 
   ```linux
 yum clean all
-yum makecache
+yum makecache fast
   ```
 
 实际上我们上面安装的yum-config-manager也同样可以配置阿里源，而且它还可以手动的开启或者关闭yum子源（一个阿里源包含多个子源）：
-使用```sudo yum-config-manager --add-repo http://mirrors.aliyun.com/repo/Centos-7.repo```命令添加yum阿里源，通过```sudo yum-config-manager --enable extras```开启阿里源的extras子源，通过```sudo yum-config-manager --disable extras```关闭阿里源的extras子源。由于yum源的多源选择策略，因此只需要阿里源就行了，此处可以通过```yum-config-manager --disable```命令关闭不需要的yum源。
+使用```sudo yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo```命令添加yum阿里源，通过```sudo yum-config-manager --enable extras```开启阿里源的extras子源，通过```sudo yum-config-manager --disable extras```关闭阿里源的extras子源。由于yum源的多源选择策略，因此只需要阿里源就行了，此处可以通过```yum-config-manager --disable```命令关闭不需要的yum源。
 
 - 3、安装docker引擎和docker容器
     - 1、最新版本的docker  ```sudo yum install docker-ce docker-ce-cli containerd.io```
     - 2、安装指定版本的docker。先使用yum将可用的版本列出并排序：```yum list docker-ce --showduplicates | sort -r```,之后安装一个指定的docker版本：```sudo yum install docker-ce-<VERSION_STRING> docker-ce-cli-<VERSION_STRING> containerd.io```
 - 4、启动docker：```sudo systemctl start docker```
-- 5、验证 Docker 是否正确安装：``` sudo docker run hello-world```,成功则输出：
+- 5、设置开机启动:`sudo systemctl enable docker`
+- 6、验证 Docker 是否正确安装：``` sudo docker run hello-world```,成功则输出：
     ![docker启动测试](images/2021-08-13-16-23-15.png)
 
 ## 卸载Docker
