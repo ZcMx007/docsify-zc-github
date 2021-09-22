@@ -26,7 +26,7 @@ nexus的全称是Nexus Repository Manager，是Sonatype公司的一个产品。�
 
 ## 三、如何使用docker来进行Nexus的maven私有仓库的部署与使用
 
-> 参考[链接1](https://www.cnblogs.com/wuwei928/p/10338307.html),[链接2](https://www.cnblogs.com/yanchuanbin/p/15107979.html)
+> 参考[链接1](https://blog.csdn.net/ThinkWon/article/details/94346681),[链接2](https://www.cnblogs.com/yanchuanbin/p/15107979.html)
 
 ### 安装：
 
@@ -64,136 +64,142 @@ docker run -d -p 8081:8081 --name docker-nexus3 -v /usr/local/nexus3/nexus-data:
 4、将创建的maven-aliyun放入到maven-public（Group类型仓库）中
 ```
 
-2、Nexus安装后自带maven-releases，maven-snapshots两个仓库，用于将生成的jar包发布在这两个仓库中，在实际开发中需要将maven-releases设置为可以重复发布(Release表示稳定版本，Snapshot表示快照版本，快照版本每次进行maven加载都会拉取最新版，)，你也可以自己创建自己的私有仓库以及仓库组:
+2、Nexus安装后自带maven-releases，maven-snapshots两个仓库，用于将生成的jar包发布在这两个仓库中，在实际开发中需要将maven-releases设置为可以重复发布(Release表示稳定版本，Snapshot表示快照版本，快照版本每次进行maven加载都会拉取最新版，若项目版本号末尾带有 -SNAPSHOT，则会发布到snapshots快照版本仓库,若项目版本号末尾带有 -RELEASES 或什么都不带，则会发布到releases正式版本仓库)，你也可以自己创建自己的私有仓库以及仓库组:
 
 ```shell
-1、创建两个仓库（使用maven2(hosted)类型的库），分别选择Snapshot 和 Release，命名为（java-snapshout 和 java-release）,将maven-re若项目版本号末尾带有 -SNAPSHOT，则会发布到snapshots快照版本仓库leases设置为可以重复发布
+1、创建两个仓库（使用maven2(hosted)类型的库），分别选择Snapshot 和 Release，命名为（java-snapshout 和 java-release）,将maven-releases设置为可以重复发布
 2、创建一个Group类型仓库，将java-release和之前创建的阿里代理库添加其为成员，当客户端拉取jar包的时候，会从阿里云和私有的release库中拉取（命名为java-group）,当然也可以使用maven-public这个Group类型仓库。
 ```
 
-3、修改maven的setting.xml文件，注意，此处的http://192.168.6.5:8081是我在虚拟机中搭建的nexus的地址。其中的username也是可以在Nexus中自己创建用户来使用的。
+3、Maven配置私服下载依赖方式：
+
+maven配置私服下载有两种方式:`setting.xml：该文件配置的是全局模式   pom.xml：该文件的配置的是项目独享模式`
+若pom.xml和setting.xml同时配置了，以pom.xml为准。注意，http://192.168.6.5:8081是我在虚拟机中搭建的nexus的地址。其中的username也是可以在Nexus中自己创建用户来使用的。
+
+#### setting.xml文件配置
+
+这个时候不需要再配置pom.xml文件，即可使用私服下载jar依赖包
+
+##### 配置私服镜像
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
+<mirrors>   
+    <mirror>
+      <!--该镜像的唯一标识符。id用来区分不同的mirror元素。 -->
+      <id>nexus-releases</id>
+      <!--*指的是访问任何仓库都使用我们的私服-->
+      <mirrorOf>*</mirrorOf>    
+      <!--该镜像的URL。构建系统会优先考虑使用该URL，而非使用默认的服务器URL。 -->
+      <url>http://192.168.6.5:8081/repository/maven-public/</url>     
+    </mirror>    
+    <mirror>     
+      <id>nexus-snapshots</id>     
+      <mirrorOf>*</mirrorOf>     
+      <url>http://192.168.6.5:8081/repository/maven-snapshots/</url>     
+    </mirror>
+	<mirror>
+      <id>alimaven</id>
+      <name>aliyun maven</name>
+      <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
+      <mirrorOf>central</mirrorOf>        
+    </mirror>
+  </mirrors>
+```
 
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+镜像的URL可以从页面中的copy按钮直接复制。
 
-    http://www.apache.org/licenses/LICENSE-2.0
+##### 配置从私服下载jar包
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+```xml
+  <profiles>
+    <profile>
+        <!--profile的id-->
+        <id>nexus</id>
+        <repositories>
+            <repository>
+                <!--仓库id，repositories可以配置多个仓库，保证id不重复-->
+                <id>nexus-releases</id>
+                <!--仓库地址，即nexus仓库组的地址-->
+                <url>http://192.168.6.5:8081/repository/maven-public/</url>
+                <releases>
+                    <!--是否下载releases构件-->
+                    <enabled>true</enabled>
+                </releases>
+                <snapshots>
+                    <enabled>true</enabled>
+                </snapshots>
+            </repository>
+            <repository>
+                <id>nexus-snapshots</id>
+                <url>http://192.168.6.5:8081/repository/maven-snapshots/</url>
+                <releases>
+                    <enabled>true</enabled>
+                </releases>
+                <snapshots>
+                    <enabled>true</enabled>
+                </snapshots>
+            </repository>
+        </repositories>
+        <pluginRepositories>
+            <!-- 插件仓库，maven的运行依赖插件，也需要从私服下载插件 -->
+            <pluginRepository>
+                <!-- 插件仓库的id不允许重复，如果重复后边配置会覆盖前边 -->
+                <id>nexus-releases</id>
+                <url>http://192.168.6.5:8081/repository/maven-public/</url>
+                <releases>
+                    <enabled>true</enabled>
+                </releases>
+                <snapshots>
+                    <enabled>true</enabled>
+                </snapshots>
+            </pluginRepository>
+            <pluginRepository>
+                <id>nexus-snapshots</id>
+                <url>http://192.168.6.5:8081/repository/maven-snapshots/</url>
+                <releases>
+                    <enabled>true</enabled>
+                </releases>
+                <snapshots>
+                    <enabled>true</enabled>
+                </snapshots>
+            </pluginRepository>
+        </pluginRepositories>
+    </profile>  
 
-<!--
- | This is the configuration file for Maven. It can be specified at two levels:
- |
- |  1. User Level. This settings.xml file provides configuration for a single user,
- |                 and is normally provided in ${user.home}/.m2/settings.xml.
- |
- |                 NOTE: This location can be overridden with the CLI option:
- |
- |                 -s /path/to/user/settings.xml
- |
- |  2. Global Level. This settings.xml file provides configuration for all Maven
- |                 users on a machine (assuming they're all using the same Maven
- |                 installation). It's normally provided in
- |                 ${maven.conf}/settings.xml.
- |
- |                 NOTE: This location can be overridden with the CLI option:
- |
- |                 -gs /path/to/global/settings.xml
- |
- | The sections in this sample file are intended to give you a running start at
- | getting the most out of your Maven installation. Where appropriate, the default
- | values (values used when the setting is not specified) are provided.
- |
- |-->
-<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
-  <!-- localRepository
-   | The path to the local repository maven will use to store artifacts.
-   |
-   | Default: ${user.home}/.m2/repository
-  -->
-  <localRepository>${user.home}/.m2/repository</localRepository>
+  </profiles>
 
-  <!-- interactiveMode
-   | This will determine whether maven prompts you when it needs input. If set to false,
-   | maven will use a sensible default value, perhaps based on some other setting, for
-   | the parameter in question.
-   |
-   | Default: true
-  <interactiveMode>true</interactiveMode>
-  -->
+  <!--激活profile-->
+  <activeProfiles>    
+    <activeProfile>nexus</activeProfile>    
+  </activeProfiles>
+```
 
-  <!-- offline
-   | Determines whether maven should attempt to connect to the network when executing a build.
-   | This will have an effect on artifact downloads, artifact deployment, and others.
-   |
-   | Default: false
-  <offline>false</offline>
-  -->
+#### pom.xml文件配置
 
-  <!-- pluginGroups
-   | This is a list of additional group identifiers that will be searched when resolving plugins by their prefix, i.e.
-   | when invoking a command line like "mvn prefix:goal". Maven will automatically add the group identifiers
-   | "org.apache.maven.plugins" and "org.codehaus.mojo" if these are not already contained in the list.
-   |-->
-  <pluginGroups>
-    <!-- pluginGroup
-     | Specifies a further group identifier to use for plugin lookup.
-    <pluginGroup>com.your.plugins</pluginGroup>
-    -->
-  </pluginGroups>
+如果你配置了pom.xml，则以pom.xml为准
 
-  <!-- proxies
-   | This is a list of proxies which can be used on this machine to connect to the network.
-   | Unless otherwise specified (by system property or command-line switch), the first proxy
-   | specification in this list marked as active will be used.
-   |-->
-  <proxies>
-    <!-- proxy
-     | Specification for one proxy, to be used in connecting to the network.
-     |
-    <proxy>
-      <id>optional</id>
-      <active>true</active>
-      <protocol>http</protocol>
-      <username>proxyuser</username>
-      <password>proxypass</password>
-      <host>proxy.host.net</host>
-      <port>80</port>
-      <nonProxyHosts>local.net|some.host.com</nonProxyHosts>
-    </proxy>
-    -->
-  </proxies>
+```xml
+<repositories>
+    <repository>
+        <id>maven-nexus</id>
+        <name>maven-nexus</name>
+        <url>http://192.168.6.5:8081/repository/maven-public/</url>
+        <releases>
+            <enabled>true</enabled>
+        </releases>
+        <snapshots>
+            <enabled>true</enabled>
+        </snapshots>
+    </repository>
+</repositories>
+```
 
-  <!-- servers
-   | This is a list of authentication profiles, keyed by the server-id used within the system.
-   | Authentication profiles can be used whenever maven must make a connection to a remote server.
-   |-->
-  <servers>
-    <!-- server
-     | Specifies the authentication information to use when connecting to a particular server, identified by
-     | a unique name within the system (referred to by the 'id' attribute below).
-     |
-     | NOTE: You should either specify username/password OR privateKey/passphrase, since these pairings are
-     |       used together.
-     |
-    -->
-    
+4、配置Maven连接私服打包上传项目
+
+第一步，修改setting.xml文件，指定releases和snapshots server的用户名和密码
+
+```xml
+<servers>
     <server>
       <id>releases</id>
       <username>admin</username>
@@ -205,236 +211,67 @@ under the License.
       <username>admin</username>
       <password>123456</password>
     </server>
-
-    <!-- Another sample, using keys to authenticate.
-    <server>
-      <id>siteServer</id>
-      <privateKey>/path/to/private/key</privateKey>
-      <passphrase>optional; leave empty if not used.</passphrase>
-    </server>
-    -->
-  </servers>
-
-  <!-- mirrors
-   | This is a list of mirrors to be used in downloading artifacts from remote repositories.
-   |
-   | It works like this: a POM may declare a repository to use in resolving certain artifacts.
-   | However, this repository may have problems with heavy traffic at times, so people have mirrored
-   | it to several places.
-   |
-   | That repository definition will have a unique id, so we can create a mirror reference for that
-   | repository, to be used as an alternate download site. The mirror site will be the preferred
-   | server for that repository.
-   |-->
-  <mirrors>
-    <!-- mirror
-     | Specifies a repository mirror site to use instead of a given repository. The repository that
-     | this mirror serves has an ID that matches the mirrorOf element of this mirror. IDs are used
-     | for inheritance and direct lookup purposes, and must be unique across the set of mirrors.
-     |
-    -->
-    <mirror>
-      <id>HolliParkMirror</id>
-      <mirrorOf>*</mirrorOf>
-      <name>HolliPark Repository Mirror.</name>
-      <url>http://192.168.6.5:8081/nexus/repository/maven-public/</url>
-    </mirror>
-       
-  </mirrors>
-
-  <!-- profiles
-   | This is a list of profiles which can be activated in a variety of ways, and which can modify
-   | the build process. Profiles provided in the settings.xml are intended to provide local machine-
-   | specific paths and repository locations which allow the build to work in the local environment.
-   |
-   | For example, if you have an integration testing plugin - like cactus - that needs to know where
-   | your Tomcat instance is installed, you can provide a variable here such that the variable is
-   | dereferenced during the build process to configure the cactus plugin.
-   |
-   | As noted above, profiles can be activated in a variety of ways. One way - the activeProfiles
-   | section of this document (settings.xml) - will be discussed later. Another way essentially
-   | relies on the detection of a system property, either matching a particular value for the property,
-   | or merely testing its existence. Profiles can also be activated by JDK version prefix, where a
-   | value of '1.4' might activate a profile when the build is executed on a JDK version of '1.4.2_07'.
-   | Finally, the list of active profiles can be specified directly from the command line.
-   |
-   | NOTE: For profiles defined in the settings.xml, you are restricted to specifying only artifact
-   |       repositories, plugin repositories, and free-form properties to be used as configuration
-   |       variables for plugins in the POM.
-   |
-   |-->
-  <profiles>
-    <profile>
-      <id>HolliPark</id>
-      <repositories>
-        <repository>
-          <id>nexus</id>
-          <name>Public Repositories</name>
-          <url>http://192.168.6.5:8081/nexus/repository/maven-public/</url>
-          <releases>
-            <enabled>true</enabled>
-          </releases>
-        </repository>
-      
-        <repository>
-          <id>central</id>
-          <name>Central Repositories</name>
-          <url>http://192.168.6.5:8081/nexus/repository/maven-central/</url>
-          <releases>
-            <enabled>true</enabled>
-          </releases>
-          <snapshots>
-            <enabled>false</enabled>
-          </snapshots>
-        </repository>
-        
-        <repository>
-          <id>release</id>
-          <name>Release Repositories</name>
-          <url>http://192.168.6.5:8081/nexus/repository/maven-releases/</url>
-          <releases>
-            <enabled>true</enabled>
-          </releases>
-          <snapshots>
-            <enabled>false</enabled>
-          </snapshots>
-        </repository>
-        
-        <repository>
-          <id>snapshots</id>
-          <name>Snapshot Repositories</name>
-          <url>http://192.168.6.5:8081/nexus/repository/maven-snapshots/</url>
-          <releases>
-            <enabled>true</enabled>
-          </releases>
-          <snapshots>
-            <enabled>true</enabled>
-          </snapshots>
-        </repository>
-      </repositories>
-      
-      <pluginRepositories>
-        <pluginRepository>
-          <id>plugins</id>
-          <name>Plugin Repositories</name>
-          <url>http://192.168.6.5:8081/nexus/repository/maven-public/</url>
-        </pluginRepository>
-      </pluginRepositories>
-    </profile>
-    <!-- profile
-     | Specifies a set of introductions to the build process, to be activated using one or more of the
-     | mechanisms described above. For inheritance purposes, and to activate profiles via <activatedProfiles/>
-     | or the command line, profiles have to have an ID that is unique.
-     |
-     | An encouraged best practice for profile identification is to use a consistent naming convention
-     | for profiles, such as 'env-dev', 'env-test', 'env-production', 'user-jdcasey', 'user-brett', etc.
-     | This will make it more intuitive to understand what the set of introduced profiles is attempting
-     | to accomplish, particularly when you only have a list of profile id's for debug.
-     |
-     | This profile example uses the JDK version to trigger activation, and provides a JDK-specific repo.
-    <profile>
-      <id>jdk-1.4</id>
-
-      <activation>
-        <jdk>1.4</jdk>
-      </activation>
-
-      <repositories>
-        <repository>
-          <id>jdk14</id>
-          <name>Repository for JDK 1.4 builds</name>
-          <url>http://www.myhost.com/maven/jdk14</url>
-          <layout>default</layout>
-          <snapshotPolicy>always</snapshotPolicy>
-        </repository>
-      </repositories>
-    </profile>
-    -->
-    
-    <!--
-     | Here is another profile, activated by the system property 'target-env' with a value of 'dev',
-     | which provides a specific path to the Tomcat instance. To use this, your plugin configuration
-     | might hypothetically look like:
-     |
-     | ...
-     | <plugin>
-     |   <groupId>org.myco.myplugins</groupId>
-     |   <artifactId>myplugin</artifactId>
-     |
-     |   <configuration>
-     |     <tomcatLocation>${tomcatPath}</tomcatLocation>
-     |   </configuration>
-     | </plugin>
-     | ...
-     |
-     | NOTE: If you just wanted to inject this configuration whenever someone set 'target-env' to
-     |       anything, you could just leave off the <value/> inside the activation-property.
-     |
-    <profile>
-      <id>env-dev</id>
-
-      <activation>
-        <property>
-          <name>target-env</name>
-          <value>dev</value>
-        </property>
-      </activation>
-
-      <properties>
-        <tomcatPath>/path/to/tomcat/instance</tomcatPath>
-      </properties>
-    </profile>
-    -->
-  </profiles>
-
-  <!-- activeProfiles
-   | List of profiles that are active for all builds.
-   |
-  <activeProfiles>
-    <activeProfile>alwaysActiveProfile</activeProfile>
-    <activeProfile>anotherAlwaysActiveProfile</activeProfile>
-  </activeProfiles>
-  -->
-  
-  <activeProfiles>
-    <activeProfile>HolliPark</activeProfile>
-  </activeProfiles>
-  
-</settings>
+</servers>
 ```
 
-4、创建私有公库。
+第二步，在项目的pom.xml文件中加入distributionManagement节点。
 
-```shell
-1、在IDEA中创建普通的maven项目
-2、修改项目的pom.xml：在pom文件中加入distributionManagement节点，注意：pom.xml中repository里的id需要和.m2中setting.xml里的server id名称保持一致
-3、发布私有公库：mvn deploy
-```
-
-pom文件：
+注意：repository里的id需要和第一步里的server id名称保持一致。
 
 ```xml
 <distributionManagement>
     <repository>
         <id>releases</id>
-        <name>Nexus Release Repository</name>
-        <url>http://192.168.6.5:8081/nexus/repository/maven-releases/</url>
+        <name>Releases</name>
+        <url>http://192.168.6.5:8081/repository/maven-releases/</url>
     </repository>
     <snapshotRepository>
         <id>snapshots</id>
-        <name>Nexus Snapshot Repository</name>
-        <url>http://192.168.6.5:8081/nexus/repository/maven-snapshots/</url>
+        <name>Snapshot</name>
+        <url>http://192.168.6.5:8081/repository/maven-snapshots/</url>
     </snapshotRepository>
 </distributionManagement>
 ```
 
-5、批量上传Maven仓库jar包到Nexus3.x私服的方式：
+5、执行发布:`mvn deploy`,登录Nexus，查看对应的仓库已经有相关的依赖包了。
+
+注意：
+
+- 若项目版本号末尾带有 -SNAPSHOT，则会发布到snapshots快照版本仓库
+- 若项目版本号末尾带有 -RELEASES 或什么都不带，则会发布到releases正式版本仓库
+
+6、批量上传Maven仓库jar包到Nexus3.x私服的方式：
 
 ```shell
-1、进入nexus的upload界面单个上传
-2、使用deploy命令上传，此种方式需要配置pom文件
+1、进入nexus的upload界面单个上传 一般用于公司内部私有jar包的上传
+2、使用deploy命令上传，此种方式需要配置pom文件:mvn deploy
 3、将需要上传的包上传至linux服务器，再通过linux命令上传
 ```
+
+## 四、常见问题
+
+注意：在`mvn deploy`时可能会发生以下错误：[参考链接](http://alanhou.org/nexus-maven/)
+
+1、Return code is: 400, ReasonPhrase: Repository does not allow updating assets: maven-releases.
+
+产生这一问题的原因是不允许同版本重复部署，解决方法有：
+
+- 进入录Nexus管理界面–>小齿轮图标–>Repository–>Repositories–>maven-releases，Hosted下方请选择‘Allow redeploy’
+- 更推荐的方法是更改本地的版本号，而不是使用相同版本号打包至 Maven
+
+2、提示`500 server error`错误，查看nexus的日志文件可发现：Error occurred while executing a write operation to database ‘component’ due to limited free space on the disk (3610 MB). The database is now working in read-only mode. Please close the database (or stop OrientDB), make room on your hard drive and then reopen the database. The minimal required space is 4096 MB. Required space is now set to 4096MB (you can change it by setting parameter storage.diskCache.diskFreeSpaceLimit) . DB name=”component”. -> [Help 1]
+
+这一问题是由于默认要求在写入时要有4GB 的空闲空间，只需修改配置文件即可，位于安装目录下的bin/nexus.vmoptions文件中，由于上面使用的是 Docker安装，Alan 暂未深入研究如何将配置文件挂载到本机中，临时解决的方案是：
+
+```shell
+docker cp nexus:/opt/sonatype/nexus/bin/nexus.vmoptions /tmp
+# 修改完成后再拷贝回去进行覆盖
+# 如添加或修改参数-Dstorage.diskCache.diskFreeSpaceLimit=2048
+docker cp /tmp/nexus.vmoptions nexus:/opt/sonatype/nexus/bin/nexus.vmoptions
+docker container restart nexus
+```
+
+此时再使用`mvn deploy`命令就可以上传文件到私有maven仓库了。
 
 
 
